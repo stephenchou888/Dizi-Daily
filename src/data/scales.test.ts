@@ -2,10 +2,11 @@ import { describe, it, expect } from 'vitest';
 import { SCALES, FINGERINGS, DIZI_KEYS } from './scales';
 
 describe('Dizi scales and fingerings data integrity', () => {
-  it('defines all 4 standard Dizi keys (C/D Qudi, F/G Bangdi)', () => {
+  it('defines all 5 standard Dizi keys in C-D-E-F-G order', () => {
     expect(Object.keys(DIZI_KEYS)).toEqual([
-      'qudi_d',
       'qudi_c',
+      'qudi_d',
+      'qudi_e',
       'bangdi_f',
       'bangdi_g',
     ]);
