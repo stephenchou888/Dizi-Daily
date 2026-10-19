@@ -241,9 +241,9 @@ export default function App() {
             </div>
           </div>
 
-          {/* Right Controls: Flute Key Switcher, Scale Picker, Theme Toggle */}
+          {/* Right Controls: Flute Key Switcher (C -> D -> E -> F -> G), Scale Picker, Theme Toggle */}
           <div className="flex items-center gap-2 flex-wrap">
-            {/* Flute Key Switcher (曲笛 D/C · 梆笛 F/G) */}
+            {/* Flute Key Switcher (C / D / E / F / G) */}
             <ToggleGroup
               type="single"
               value={diziKey}
@@ -253,6 +253,13 @@ export default function App() {
               className="bg-muted p-0.5 rounded-lg border border-border"
             >
               <ToggleGroupItem
+                value="qudi_c"
+                className="h-7 px-2.5 text-xs font-medium"
+                title="大曲笛 C调（第三孔作1=C5 · 浑厚悠远）"
+              >
+                C调曲笛
+              </ToggleGroupItem>
+              <ToggleGroupItem
                 value="qudi_d"
                 className="h-7 px-2.5 text-xs font-medium"
                 title="曲笛 D调（第三孔作1=D5 · 初学与江南丝竹首选）"
@@ -260,11 +267,11 @@ export default function App() {
                 D调曲笛
               </ToggleGroupItem>
               <ToggleGroupItem
-                value="qudi_c"
+                value="qudi_e"
                 className="h-7 px-2.5 text-xs font-medium"
-                title="大曲笛 C调（第三孔作1=C5 · 浑厚悠远）"
+                title="中音笛 E调（第三孔作1=E5 · 温婉清丽，江南与国风常用）"
               >
-                C调曲笛
+                E调笛
               </ToggleGroupItem>
               <ToggleGroupItem
                 value="bangdi_f"
@@ -482,7 +489,7 @@ export default function App() {
       <footer className="border-t border-border py-4 px-6 text-center text-xs text-muted-foreground mt-8">
         <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
           <span>
-            中国竹笛每日指法与气功练习 · 支持曲笛 (C/D调) 与梆笛 (F/G调) · 筒音转调与半孔/叉口可视化
+            中国竹笛每日指法与气功练习 · 支持 C / D / E / F / G 五大常用调性竹笛 · 筒音转调与半孔/叉口可视化
           </span>
           <span className="font-mono text-[11px]">
             Built with React 19 + Tailwind CSS v4 + abcjs + Web Audio API
