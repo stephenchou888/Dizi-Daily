@@ -1,6 +1,16 @@
 import { DiziKey, DiziKeyMeta, NoteFingering, ScaleDefinition } from '../types/music';
 
 export const DIZI_KEYS: Record<DiziKey, DiziKeyMeta> = {
+  qudi_c: {
+    id: 'qudi_c',
+    shortLabel: 'C调曲笛',
+    fullLabel: '大曲笛 · C调（第三孔 1 = C）',
+    styleTag: '浑厚悠远 / 记谱实音',
+    thirdHoleNote: 'C5 (523.3 Hz)',
+    tongyinNote: 'G4 (392.0 Hz)',
+    semitoneOffset: 0,
+    timbreDesc: '低音深沉苍劲、气息宽广，记谱音高与实际发音完全一致',
+  },
   qudi_d: {
     id: 'qudi_d',
     shortLabel: 'D调曲笛',
@@ -11,15 +21,15 @@ export const DIZI_KEYS: Record<DiziKey, DiziKeyMeta> = {
     semitoneOffset: 2,
     timbreDesc: '管身修长醇厚，笛膜共鸣温润甜美，最适合江南丝竹与经典独奏曲',
   },
-  qudi_c: {
-    id: 'qudi_c',
-    shortLabel: 'C调曲笛',
-    fullLabel: '大曲笛 · C调（第三孔 1 = C）',
-    styleTag: '浑厚悠远 / 记谱实音',
-    thirdHoleNote: 'C5 (523.3 Hz)',
-    tongyinNote: 'G4 (392.0 Hz)',
-    semitoneOffset: 0,
-    timbreDesc: '低音深沉苍劲、气息宽广，记谱音高与实际发音完全一致',
+  qudi_e: {
+    id: 'qudi_e',
+    shortLabel: 'E调笛',
+    fullLabel: '中音笛 · E调（第三孔 1 = E）',
+    styleTag: '温婉清丽 / 丝竹与国风常用',
+    thirdHoleNote: 'E5 (659.3 Hz)',
+    tongyinNote: 'B4 (493.9 Hz)',
+    semitoneOffset: 4,
+    timbreDesc: '介于曲笛与梆笛之间的黄金中音笛，音色柔美清亮，常用于《姑苏行》《小放牛》及流行国风曲目',
   },
   bangdi_f: {
     id: 'bangdi_f',
