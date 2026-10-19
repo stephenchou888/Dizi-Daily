@@ -34,7 +34,7 @@ export interface ScaleDefinition {
   category?: ScaleCategory;
 }
 
-export type DiziKey = 'qudi_d' | 'qudi_c' | 'bangdi_f' | 'bangdi_g';
+export type DiziKey = 'qudi_c' | 'qudi_d' | 'qudi_e' | 'bangdi_f' | 'bangdi_g';
 
 export interface DiziKeyMeta {
   id: DiziKey;
