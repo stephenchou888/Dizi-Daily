@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dizi Daily - 中国竹笛每日基本功与指法训练</title>
+  <meta name="description" content="今日五线谱/简谱视奏 & 六孔动态指法同步教学，专为曲笛（D调/C调）与梆笛（G调/F调）初学者及进阶练习者设计的轻量级练笛助手。" />
+  <meta property="og:title" content="Dizi Daily - 中国竹笛每日基本功与指法训练" />
+  <meta property="og:description" content="今日五线谱/简谱视奏 & 六孔动态指法同步教学，专为曲笛（D调/C调）与梆笛（G调/F调）初学者及进阶练习者设计的轻量级练笛助手。" />
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎋</text></svg>" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <!-- 字体样式表异步加载：Google Fonts 不可达时（如部分国内网络）不阻塞首屏，回退到系统字体 -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" media="print" onload="this.media='all'" />
+  <script>
+    // 首帧前应用主题，避免闪烁：优先读取用户选择，否则跟随系统
+    try {
+      var t = localStorage.getItem('dizi_daily_theme');
+      if (t === 'dark' || (!t && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        document.documentElement.classList.add('dark');
+      }
+    } catch (e) {}
+  </script>
+</head>
+<body class="min-h-screen">
+  <div id="root"></div>
+  <script type="module" src="/src/main.tsx"></script>
+</body>
+</html>
