@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { getTodayScale } from './lib/dailyScale';
 import { FINGERINGS, SCALES, DIZI_KEYS } from './data/scales';
 import { BreathLevel, DiziKey, ScaleCategory } from './types/music';
@@ -16,6 +16,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Moon,
+  Pause,
   Play,
   Sun,
   Volume2,
@@ -193,13 +194,37 @@ export default function App() {
       : '自定义按孔组合'
     : currentFingering.desc;
   const currentDiziMeta = DIZI_KEYS[diziKey];
-  const [auditioning, setAuditioning] = useState(false);
-  const auditionTimer = useRef<number>(0);
+  const [isAuditionPlaying, setIsAuditionPlaying] = useState(false);
+  const auditionStepRef = useRef({ activeNoteIndex, notes: scale.notes, diziKey });
+  auditionStepRef.current = { activeNoteIndex, notes: scale.notes, diziKey };
+
+  useEffect(() => {
+    if (!isAuditionPlaying) return;
+
+    const timer = window.setInterval(() => {
+      const { activeNoteIndex: currentIndex, notes, diziKey: currentKey } =
+        auditionStepRef.current;
+      if (notes.length === 0) return;
+
+      const nextIndex = (currentIndex + 1) % notes.length;
+      const fingering = FINGERINGS[notes[nextIndex]];
+      if (fingering) {
+        playDiziNote(getDiziSoundingPitch(fingering.freq, currentKey), 0.65);
+      }
+      setActiveNoteIndex(nextIndex);
+    }, 60000 / 76);
+
+    return () => window.clearInterval(timer);
+  }, [isAuditionPlaying, playDiziNote]);
+
   const handleAudition = () => {
-    playDiziNote(soundingFreq, 0.75);
-    setAuditioning(true);
-    window.clearTimeout(auditionTimer.current);
-    auditionTimer.current = window.setTimeout(() => setAuditioning(false), 800);
+    if (isAuditionPlaying) {
+      setIsAuditionPlaying(false);
+      return;
+    }
+
+    playDiziNote(soundingFreq, 0.65);
+    setIsAuditionPlaying(true);
   };
 
   const soundingFreq = getDiziSoundingPitch(
@@ -434,9 +459,10 @@ export default function App() {
                 <Button
                   className="h-11 flex-1"
                   onClick={handleAudition}
-                  aria-label="试听当前竹笛音"
+                  aria-label={isAuditionPlaying ? '暂停连续吹奏' : '连续吹奏音阶'}
                 >
-                  <Play className="fill-current" /> {auditioning ? '播放中…' : '吹奏试听'}
+                  {isAuditionPlaying ? <Pause /> : <Play className="fill-current" />}
+                  {isAuditionPlaying ? '暂停吹奏' : '连续吹奏'}
                 </Button>
                 <Button
                   variant="outline"
@@ -509,7 +535,8 @@ export default function App() {
           <ChevronLeft />
         </Button>
         <Button className="h-11 flex-1 font-semibold" onClick={handleAudition}>
-          <Volume2 /> {auditioning ? '播放中…' : '试听当前音'}
+          {isAuditionPlaying ? <Pause /> : <Play className="fill-current" />}
+          {isAuditionPlaying ? '暂停吹奏' : '连续吹奏'}
         </Button>
         <Button variant="outline" size="icon" className="size-11" aria-label="下一个音" onClick={handleNextNote}>
           <ChevronRight />
