@@ -13,6 +13,8 @@ import { Badge } from '@/components/ui/badge';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 
 interface MetronomeProps {
+  bpm: number;
+  onBpmChange: (bpm: number) => void;
   scaleNotes: string[];
   diziKey: DiziKey;
   onStepNote: (index: number) => void;
@@ -21,13 +23,14 @@ interface MetronomeProps {
 }
 
 export const Metronome: React.FC<MetronomeProps> = ({
+  bpm,
+  onBpmChange: setBpm,
   scaleNotes,
   diziKey,
   onStepNote,
   isPlayingScale,
   setIsPlayingScale,
 }) => {
-  const [bpm, setBpm] = useState<number>(76);
   const [isRunning, setIsRunning] = useState<boolean>(false);
   const [beatsPerMeasure, setBeatsPerMeasure] = useState<number>(4);
   const [activeBeat, setActiveBeat] = useState<number>(-1);
@@ -113,7 +116,7 @@ export const Metronome: React.FC<MetronomeProps> = ({
   };
 
   const adjustBpm = (delta: number) => {
-    setBpm((prev) => Math.min(208, Math.max(40, prev + delta)));
+    setBpm(Math.min(208, Math.max(40, bpm + delta)));
   };
 
   const keyMeta = DIZI_KEYS[diziKey];
