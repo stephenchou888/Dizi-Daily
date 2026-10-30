@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import {
   ZoomIn,
   ZoomOut,
@@ -8,11 +9,16 @@ import {
   Tag,
   Hash,
   Sparkles,
+  Expand,
+  Shrink,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Toggle } from '@/components/ui/toggle';
 import { Badge } from '@/components/ui/badge';
 import { FINGERINGS } from '../data/scales';
+
+// 放大窗口时在当前缩放基础上再放大的倍数
+const FOCUS_ZOOM = 1.5;
 
 const loadAbcjs = () => import('abcjs').then((m) => m.default);
 
@@ -65,6 +71,34 @@ export const SheetMusicView: React.FC<SheetMusicViewProps> = ({
   const [showNoteNames, setShowNoteNames] = useState<boolean>(true);
   const [showAccidentals, setShowAccidentals] = useState<boolean>(true);
   const [renderTick, setRenderTick] = useState<number>(0);
+  const [focusMode, setFocusMode] = useState<boolean>(false);
+  const activeIndexRef = useRef(activeNoteIndex);
+  activeIndexRef.current = activeNoteIndex;
+  const notesLenRef = useRef(notes.length);
+  notesLenRef.current = notes.length;
+
+  // 放大窗口：Esc 关闭，←/→ 切换音符，并锁定页面滚动
+  useEffect(() => {
+    if (!focusMode) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setFocusMode(false);
+      } else if (e.key === 'ArrowRight' && activeIndexRef.current < notesLenRef.current - 1) {
+        e.preventDefault();
+        onSelectNoteRef.current(activeIndexRef.current + 1);
+      } else if (e.key === 'ArrowLeft' && activeIndexRef.current > 0) {
+        e.preventDefault();
+        onSelectNoteRef.current(activeIndexRef.current - 1);
+      }
+    };
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [focusMode]);
 
   useEffect(() => {
     onSelectNoteRef.current = onSelectNote;
@@ -150,11 +184,12 @@ export const SheetMusicView: React.FC<SheetMusicViewProps> = ({
 
         el.innerHTML = '';
         const baseStaffWidth = singleLine ? Math.max(860, notes.length * 46) : 680;
-        const staffWidth = Math.round(baseStaffWidth * zoom);
+        const renderZoom = focusMode ? zoom * FOCUS_ZOOM : zoom;
+        const staffWidth = Math.round(baseStaffWidth * renderZoom);
 
         abcjs.renderAbc(el, activeAbc, {
           responsive: singleLine ? undefined : 'resize',
-          scale: zoom,
+          scale: renderZoom,
           staffwidth: staffWidth,
           format: singleLine ? { stretchlast: true } : undefined,
           add_classes: true,
@@ -185,7 +220,7 @@ export const SheetMusicView: React.FC<SheetMusicViewProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [activeAbc, notes, zoom, singleLine, showNoteNames]);
+  }, [activeAbc, notes, zoom, singleLine, showNoteNames, focusMode]);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -211,8 +246,12 @@ export const SheetMusicView: React.FC<SheetMusicViewProps> = ({
     });
   }, [activeNoteIndex, renderTick, singleLine]);
 
-  return (
-    <div className="w-full relative rounded-xl bg-muted/40 border border-border p-3 overflow-hidden space-y-2">
+  const view = (
+    <div
+      className={`w-full relative rounded-xl bg-muted/40 border border-border p-3 overflow-hidden space-y-2 ${
+        focusMode ? 'flex flex-col max-h-[90vh] w-[min(96vw,1400px)] !bg-card shadow-2xl' : ''
+      }`}
+    >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
           <span className="font-medium text-foreground/80">
@@ -292,7 +331,11 @@ export const SheetMusicView: React.FC<SheetMusicViewProps> = ({
               title="重置曲谱大小 (100%)"
               className="h-6 px-1.5 text-[10px] font-mono text-muted-foreground hover:text-foreground min-w-[38px]"
             >
-              {zoom === 1 ? <RotateCcw className="w-3 h-3" /> : `${Math.round(zoom * 100)}%`}
+              {zoom === 1 && !focusMode ? (
+                <RotateCcw className="w-3 h-3" />
+              ) : (
+                `${Math.round(zoom * (focusMode ? FOCUS_ZOOM : 1) * 100)}%`
+              )}
             </Button>
             <Button
               variant="ghost"
@@ -305,6 +348,18 @@ export const SheetMusicView: React.FC<SheetMusicViewProps> = ({
               <ZoomIn className="w-3.5 h-3.5" />
             </Button>
           </div>
+
+          <Button
+            variant={focusMode ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setFocusMode((v) => !v)}
+            title={focusMode ? '关闭放大窗口（Esc）' : '放大窗口看谱（← / → 切换音符，Esc 关闭）'}
+            aria-label={focusMode ? '关闭放大窗口' : '放大窗口看谱'}
+            className="h-7 px-2 text-[11px] gap-1"
+          >
+            {focusMode ? <Shrink className="w-3.5 h-3.5" /> : <Expand className="w-3.5 h-3.5" />}
+            {focusMode ? '关闭' : '放大'}
+          </Button>
         </div>
       </div>
 
@@ -334,7 +389,12 @@ export const SheetMusicView: React.FC<SheetMusicViewProps> = ({
         )}
       </div>
 
-      <div ref={scrollWrapperRef} className="w-full overflow-x-auto pb-1">
+      <div
+        ref={scrollWrapperRef}
+        className={`w-full overflow-x-auto pb-1 ${
+          focusMode ? 'flex-1 overflow-y-auto min-h-[40vh] flex flex-col justify-center' : ''
+        }`}
+      >
         <div
           ref={containerRef}
           className={`abc-sheet-container text-foreground select-none ${
@@ -343,5 +403,19 @@ export const SheetMusicView: React.FC<SheetMusicViewProps> = ({
         />
       </div>
     </div>
+  );
+
+  if (!focusMode) return view;
+  return createPortal(
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="放大查看五线谱"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-2 sm:p-6"
+      onClick={(e) => e.target === e.currentTarget && setFocusMode(false)}
+    >
+      {view}
+    </div>,
+    document.body
   );
 };
