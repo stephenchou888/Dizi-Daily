@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { getTodayScale } from './lib/dailyScale';
 import { FINGERINGS, SCALES, DIZI_KEYS } from './data/scales';
 import { BreathLevel, DiziKey, ScaleCategory } from './types/music';
@@ -193,6 +193,15 @@ export default function App() {
       : '自定义按孔组合'
     : currentFingering.desc;
   const currentDiziMeta = DIZI_KEYS[diziKey];
+  const [auditioning, setAuditioning] = useState(false);
+  const auditionTimer = useRef<number>(0);
+  const handleAudition = () => {
+    playDiziNote(soundingFreq, 0.75);
+    setAuditioning(true);
+    window.clearTimeout(auditionTimer.current);
+    auditionTimer.current = window.setTimeout(() => setAuditioning(false), 800);
+  };
+
   const soundingFreq = getDiziSoundingPitch(
     exploreMode && exploreMatch ? exploreMatch.freq : currentFingering.freq,
     diziKey
@@ -424,10 +433,10 @@ export default function App() {
                 </Button>
                 <Button
                   className="h-11 flex-1"
-                  onClick={() => playDiziNote(soundingFreq, 0.75)}
+                  onClick={handleAudition}
                   aria-label="试听当前竹笛音"
                 >
-                  <Play className="fill-current" /> 吹奏试听
+                  <Play className="fill-current" /> {auditioning ? '播放中…' : '吹奏试听'}
                 </Button>
                 <Button
                   variant="outline"
@@ -499,8 +508,8 @@ export default function App() {
         <Button variant="outline" size="icon" className="size-11" aria-label="上一个音" onClick={handlePrevNote}>
           <ChevronLeft />
         </Button>
-        <Button className="h-11 flex-1 font-semibold" onClick={() => playDiziNote(soundingFreq, 0.75)}>
-          <Volume2 /> 试听当前音
+        <Button className="h-11 flex-1 font-semibold" onClick={handleAudition}>
+          <Volume2 /> {auditioning ? '播放中…' : '试听当前音'}
         </Button>
         <Button variant="outline" size="icon" className="size-11" aria-label="下一个音" onClick={handleNextNote}>
           <ChevronRight />

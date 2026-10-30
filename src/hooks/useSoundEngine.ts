@@ -34,6 +34,13 @@ function getSharedContext(): AudioContext {
     const AudioContextClass =
       window.AudioContext ||
       (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    // iOS：让网页音频走“媒体播放”通道，不受静音拨片影响
+    try {
+      const session = (navigator as unknown as { audioSession?: { type: string } }).audioSession;
+      if (session) session.type = 'playback';
+    } catch {
+      /* 不支持则忽略 */
+    }
     sharedAudioContext = new AudioContextClass();
     masterOutput = sharedAudioContext.createGain();
     masterOutput.gain.value = muted ? 0 : 1;
