@@ -203,7 +203,7 @@ export default function App() {
   const auditionStepRef = useRef({ activeNoteIndex, notes: scale.notes, diziKey, demoLoop });
   auditionStepRef.current = { activeNoteIndex, notes: scale.notes, diziKey, demoLoop };
 
-  // 慢速指法演示：每拍前进一个音，BPM 与节拍器共用；单次模式到最后一个音后自动停止
+  // 慢速练习演示：每拍前进一个音，BPM 与节拍器共用；单次模式到最后一个音后自动停止
   useEffect(() => {
     if (!isAuditionPlaying) return;
 
@@ -478,10 +478,10 @@ export default function App() {
                   variant={isAuditionPlaying ? 'destructive' : 'default'}
                   className="h-11 flex-1"
                   onClick={handleAudition}
-                  aria-label={isAuditionPlaying ? '停止演示' : '慢速指法演示'}
+                  aria-label={isAuditionPlaying ? '停止演示' : '慢速练习演示'}
                 >
                   {isAuditionPlaying ? <Square className="fill-current" /> : <Play className="fill-current" />}
-                  {isAuditionPlaying ? '停止演示' : '慢速指法演示'}
+                  {isAuditionPlaying ? '停止演示' : '慢速练习演示'}
                 </Button>
                 <Button
                   variant="outline"
@@ -567,7 +567,7 @@ export default function App() {
         </Button>
         <Button variant={isAuditionPlaying ? 'destructive' : 'default'} className="h-11 flex-1 font-semibold" onClick={handleAudition}>
           {isAuditionPlaying ? <Square className="fill-current" /> : <Play className="fill-current" />}
-          {isAuditionPlaying ? '停止演示' : '慢速指法演示'}
+          {isAuditionPlaying ? '停止演示' : '慢速练习演示'}
         </Button>
         <Button variant="outline" size="icon" className="size-11" aria-label="下一个音" onClick={handleNextNote}>
           <ChevronRight />
