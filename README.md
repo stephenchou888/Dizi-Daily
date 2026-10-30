@@ -5,7 +5,7 @@
 
 在线体验地址：**https://stephenchou888.github.io/Dizi-Daily/**
 
-参考 [Saxophone-Daily](https://github.com/stephenchou888/Saxophone-Daily) 架构打造的中国竹笛（曲笛 / 梆笛）每日音阶、筒音转调指法、口风气功与打卡练习 Web 应用。
+参考 [Saxophone-Daily](https://github.com/stephenchou888/Saxophone-Daily) 的 React + TypeScript + Vite 架构与响应式练习界面打造。保留竹笛专属的曲笛 / 梆笛调性、筒音转调指法、半孔查指法与笛膜音色，同时提供五线谱视奏、节拍跟练、每日打卡和浅色 / 深色模式。
 
 ## 核心功能
 
@@ -25,12 +25,16 @@
 - **Web Audio 竹笛物理建模合成器与节拍器**：
   - 内置竹管驻波 + **芦苇笛膜 (`Dimo`) 高次谐波共鸣** + **吹孔气声 (`Chiff`)** + **自然腹震音 (`Vibrato`)** + **木鱼/梆子节拍器**
 - **每日练笛打卡热力图 (`StreakCard`)** 与 **单音风门/口风/防漏气指导卡片 (`PracticeTipsCard`)**
+- **统一演奏控制**：静音统一控制竹笛音色、按孔音与节拍器；主题默认跟随系统并可手动切换。
 
 ## 本地开发与构建
 
+需要 Node.js 22。
+
 ```bash
-npm install
+npm ci
 npm run dev
 npm test
+npm run lint
 npm run build
 ```

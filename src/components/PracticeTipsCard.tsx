@@ -21,14 +21,14 @@ export const PracticeTipsCard: React.FC<PracticeTipsCardProps> = ({
 
   return (
     <Card className="p-5 flex flex-col gap-3.5">
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-2">
           <Sparkles className="w-4 h-4 text-primary" />
           <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             当前音位风门、口风与指法要领
           </h3>
         </div>
-        <div className="flex items-center gap-1.5">
+        <div className="flex flex-wrap items-center gap-1.5">
           <Badge variant="outline" className="text-[11px] font-mono">
             {tongyinSystem}
           </Badge>

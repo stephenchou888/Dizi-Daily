@@ -1,64 +1,82 @@
-import { useState, useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { getTodayScale } from './lib/dailyScale';
 import { FINGERINGS, SCALES, DIZI_KEYS } from './data/scales';
-import { BreathLevel, DiziKey } from './types/music';
+import { BreathLevel, DiziKey, ScaleCategory } from './types/music';
 import { DiziDiagram, SoundMode } from './components/DiziDiagram';
 import { SheetMusicView } from './components/SheetMusicView';
 import { Metronome } from './components/Metronome';
 import { ScalePicker } from './components/ScalePicker';
 import { StreakCard } from './components/StreakCard';
 import { PracticeTipsCard } from './components/PracticeTipsCard';
-import { useSoundEngine, getDiziSoundingPitch } from './hooks/useSoundEngine';
+import { useSoundEngine, useAudioMuted, getDiziSoundingPitch } from './hooks/useSoundEngine';
 import { useTheme } from './hooks/useTheme';
 import { matchFingering } from './lib/fingeringLookup';
 import {
-  Music2,
   Calendar,
-  Volume2,
-  Sparkles,
-  Sun,
-  Moon,
-  ChevronRight,
   ChevronLeft,
+  ChevronRight,
+  Moon,
+  Play,
+  Sun,
+  Volume2,
+  VolumeX,
   Wind,
 } from 'lucide-react';
-import { Card } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Toggle } from '@/components/ui/toggle';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+
+const CATEGORY_LABEL: Record<ScaleCategory, string> = {
+  tongyin: '筒音转调',
+  special: '特色练习',
+  pentatonic: '传统调式',
+  major: '自然大调',
+  minor: '自然小调',
+};
+
+const DIZI_KEY_OPTIONS: { value: DiziKey; label: string; title: string }[] = [
+  { value: 'qudi_c', label: 'C 曲笛', title: '大曲笛 C 调（第三孔作 1=C5）' },
+  { value: 'qudi_d', label: 'D 曲笛', title: '曲笛 D 调（第三孔作 1=D5）' },
+  { value: 'qudi_e', label: 'E 笛', title: '中音笛 E 调（第三孔作 1=E5）' },
+  { value: 'bangdi_f', label: 'F 梆笛', title: '中音梆笛 F 调（第三孔作 1=F5）' },
+  { value: 'bangdi_g', label: 'G 梆笛', title: '北派梆笛 G 调（第三孔作 1=G5）' },
+];
+
+const prettyNote = (note: string) => note.replace('#', '♯').replace('b', '♭');
 
 export default function App() {
   const { scale: todayScale, dayOfYear, dateStr } = useMemo(
     () => getTodayScale(),
     []
   );
-  const [selectedScaleId, setSelectedScaleId] = useState<string>(todayScale.id);
-  const [activeNoteIndex, setActiveNoteIndex] = useState<number>(0);
+  const [selectedScaleId, setSelectedScaleId] = useState(todayScale.id);
+  const [activeNoteIndex, setActiveNoteIndex] = useState(0);
   const [diziKey, setDiziKey] = useState<DiziKey>('qudi_d');
-  const [isPlayingScale, setIsPlayingScale] = useState<boolean>(true);
-  const [exploreMode, setExploreMode] = useState<boolean>(false);
+  const [isPlayingScale, setIsPlayingScale] = useState(true);
+  const [exploreMode, setExploreMode] = useState(false);
   const [customKeys, setCustomKeys] = useState<Set<string>>(new Set());
   const [exploreBreath, setExploreBreath] = useState<BreathLevel | 'all'>('all');
   const [soundMode, setSoundMode] = useState<SoundMode>('both');
 
   const { playDiziNote, playHoleTap } = useSoundEngine();
   const { theme, toggleTheme } = useTheme();
+  const [isMuted, setIsMuted] = useAudioMuted();
 
   const scale = useMemo(
-    () => SCALES.find((s) => s.id === selectedScaleId) || todayScale,
+    () => SCALES.find((item) => item.id === selectedScaleId) ?? todayScale,
     [selectedScaleId, todayScale]
   );
-
   const isTodayScale = scale.id === todayScale.id;
-  const currentNote = scale.notes[activeNoteIndex] || scale.notes[0];
-  const currentFingering = FINGERINGS[currentNote] || {
+  const currentNote = scale.notes[activeNoteIndex] ?? scale.notes[0];
+  const currentFingering = FINGERINGS[currentNote] ?? {
     desc: '标准指法',
     jianpu: '1',
     breath: 'moderate' as BreathLevel,
     keys: [],
     freq: 523.25,
   };
-
   const exploreMatch = useMemo(
     () => (exploreMode ? matchFingering(customKeys, exploreBreath) : null),
     [exploreMode, customKeys, exploreBreath]
@@ -71,21 +89,20 @@ export default function App() {
   };
 
   const handleSelectNote = (index: number, playAudio = true) => {
+    if (index < 0 || index >= scale.notes.length) return;
     setExploreMode(false);
     setActiveNoteIndex(index);
     if (playAudio) {
-      const noteName = scale.notes[index];
-      const f = FINGERINGS[noteName];
-      if (f) {
-        const soundingFreq = getDiziSoundingPitch(f.freq, diziKey);
-        playDiziNote(soundingFreq, 0.65);
+      const fingering = FINGERINGS[scale.notes[index]];
+      if (fingering) {
+        playDiziNote(getDiziSoundingPitch(fingering.freq, diziKey), 0.65);
       }
     }
   };
 
   const handleToggleExploreMode = () => {
-    setExploreMode((prev) => {
-      const next = !prev;
+    setExploreMode((previous) => {
+      const next = !previous;
       if (next) {
         setCustomKeys(new Set(currentFingering.keys));
         setExploreBreath(currentFingering.breath);
@@ -94,18 +111,11 @@ export default function App() {
     });
   };
 
-  /**
-   * Cycle a hole through:
-   * - Normal click: closed (●) -> half (◐) -> open (○) -> closed (●)
-   * - Right click (`forceHalf=true`): directly toggle half-hole (◐)
-   */
   const handleToggleHole = (holeNum: number, forceHalf = false) => {
     const fullKey = `hole_${holeNum}`;
     const halfKey = `hole_${holeNum}_half`;
-
     const hasFull = customKeys.has(fullKey);
     const hasHalf = customKeys.has(halfKey);
-
     const next = new Set(customKeys);
     next.delete(fullKey);
     next.delete(halfKey);
@@ -116,31 +126,22 @@ export default function App() {
         next.add(halfKey);
         isClosing = true;
       }
-    } else {
-      if (hasFull) {
-        next.add(halfKey);
-        isClosing = false;
-      } else if (hasHalf) {
-        // becomes open
-        isClosing = false;
-      } else {
-        next.add(fullKey);
-        isClosing = true;
-      }
+    } else if (hasFull) {
+      next.add(halfKey);
+    } else if (!hasHalf) {
+      next.add(fullKey);
+      isClosing = true;
     }
 
     if (soundMode === 'both' || soundMode === 'tap') {
       playHoleTap(isClosing);
     }
-
     if (soundMode === 'both' || soundMode === 'dizi') {
       const matched = matchFingering(next, exploreBreath);
       if (matched) {
-        const soundingFreq = getDiziSoundingPitch(matched.freq, diziKey);
-        playDiziNote(soundingFreq, 0.55);
+        playDiziNote(getDiziSoundingPitch(matched.freq, diziKey), 0.55);
       }
     }
-
     setCustomKeys(next);
   };
 
@@ -148,19 +149,17 @@ export default function App() {
     setExploreBreath(breath);
     const matched = matchFingering(customKeys, breath);
     if (matched && (soundMode === 'both' || soundMode === 'dizi')) {
-      const soundingFreq = getDiziSoundingPitch(matched.freq, diziKey);
-      playDiziNote(soundingFreq, 0.6);
+      playDiziNote(getDiziSoundingPitch(matched.freq, diziKey), 0.6);
     }
   };
 
   const handleSelectSameHoleNote = (note: string, breath: BreathLevel) => {
     setExploreBreath(breath);
-    const f = FINGERINGS[note];
-    if (f) {
-      setCustomKeys(new Set(f.keys));
+    const fingering = FINGERINGS[note];
+    if (fingering) {
+      setCustomKeys(new Set(fingering.keys));
       if (soundMode === 'both' || soundMode === 'dizi') {
-        const soundingFreq = getDiziSoundingPitch(f.freq, diziKey);
-        playDiziNote(soundingFreq, 0.65);
+        playDiziNote(getDiziSoundingPitch(fingering.freq, diziKey), 0.65);
       }
     }
   };
@@ -173,329 +172,340 @@ export default function App() {
   };
 
   const handlePrevNote = () => {
-    const nextIdx =
-      (activeNoteIndex - 1 + scale.notes.length) % scale.notes.length;
-    handleSelectNote(nextIdx, true);
+    handleSelectNote((activeNoteIndex - 1 + scale.notes.length) % scale.notes.length);
   };
 
   const handleNextNote = () => {
-    const nextIdx = (activeNoteIndex + 1) % scale.notes.length;
-    handleSelectNote(nextIdx, true);
+    handleSelectNote((activeNoteIndex + 1) % scale.notes.length);
   };
 
-  const displayedNote = exploreMode
-    ? exploreMatch?.note || currentNote
-    : currentNote;
+  const displayedNote = exploreMode ? exploreMatch?.note ?? currentNote : currentNote;
   const displayedJianpu = exploreMode
-    ? exploreMatch?.jianpu || currentFingering.jianpu
+    ? exploreMatch?.jianpu ?? currentFingering.jianpu
     : currentFingering.jianpu;
   const displayedBreath = exploreMode
-    ? exploreMatch?.breath || currentFingering.breath
+    ? exploreMatch?.breath ?? currentFingering.breath
     : currentFingering.breath;
-  const displayedKeys = exploreMode
-    ? Array.from(customKeys)
-    : currentFingering.keys;
+  const displayedKeys = exploreMode ? Array.from(customKeys) : currentFingering.keys;
   const displayedDesc = exploreMode
     ? exploreMatch
       ? `${exploreMatch.exact ? '精准匹配' : '近似指法'}：${exploreMatch.desc}`
       : '自定义按孔组合'
     : currentFingering.desc;
-
   const currentDiziMeta = DIZI_KEYS[diziKey];
   const soundingFreq = getDiziSoundingPitch(
     exploreMode && exploreMatch ? exploreMatch.freq : currentFingering.freq,
     diziKey
   );
+  const progressPct = ((activeNoteIndex + 1) / scale.notes.length) * 100;
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col selection:bg-primary/30 transition-colors duration-300">
-      {/* Top Header */}
-      <header className="border-b border-border bg-card/80 backdrop-blur-md sticky top-0 z-30">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-primary/15 border border-primary/30 flex items-center justify-center shadow-sm">
-              <Wind className="w-5 h-5 text-primary" />
+    <div className="min-h-screen bg-background pb-24 text-foreground touch-manipulation lg:pb-0">
+      <header className="sticky top-0 z-30 border-b bg-background/90 backdrop-blur">
+        <div className="mx-auto flex max-w-[1280px] flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-8">
+          <div className="flex items-center gap-2">
+            <span className="flex size-8 items-center justify-center rounded-md bg-primary text-primary-foreground">
+              <Wind className="size-4" />
+            </span>
+            <span className="whitespace-nowrap text-[15px] font-semibold tracking-tight">
+              Dizi Daily
+            </span>
+            <Badge variant="outline" className="hidden text-muted-foreground sm:inline-flex">
+              竹笛基本功
+            </Badge>
+          </div>
+
+          <div className="flex w-full items-center justify-between gap-2 sm:w-auto sm:justify-end">
+            <div className="-mx-1 min-w-0 overflow-x-auto px-1">
+              <ToggleGroup
+                type="single"
+                variant="pill"
+                size="sm"
+                value={diziKey}
+                onValueChange={(value) => value && setDiziKey(value as DiziKey)}
+                aria-label="选择竹笛调性"
+              >
+                {DIZI_KEY_OPTIONS.map((option) => (
+                  <ToggleGroupItem
+                    key={option.value}
+                    value={option.value}
+                    title={option.title}
+                    className="h-8 whitespace-nowrap px-2 text-[12px] font-medium sm:px-2.5"
+                  >
+                    {option.label}
+                  </ToggleGroupItem>
+                ))}
+              </ToggleGroup>
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-base sm:text-lg font-bold tracking-tight">
-                  中国竹笛每日练习与指法追踪
-                </h1>
-                <Badge
-                  variant="outline"
-                  className="text-[10px] font-mono border-primary/30 text-primary hidden sm:inline-flex"
-                >
-                  Dizi Daily
-                </Badge>
-              </div>
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <span className="inline-flex items-center gap-1">
-                  <Calendar className="w-3 h-3 text-primary" />
-                  {dateStr}
-                </span>
-                <span>·</span>
-                <span className="font-mono text-[11px]">
-                  年度第 {dayOfYear} 天
-                </span>
-              </div>
+            <div className="flex shrink-0 items-center gap-1.5">
+              <Toggle
+                variant="outline"
+                pressed={isMuted}
+                onPressedChange={setIsMuted}
+                aria-label={isMuted ? '取消静音' : '静音'}
+                title={isMuted ? '取消静音' : '静音（试听、按孔音与节拍器）'}
+                className="size-9 min-w-0 px-0 data-[state=on]:border-destructive/40 data-[state=on]:bg-destructive/10 data-[state=on]:text-destructive"
+              >
+                {isMuted ? <VolumeX /> : <Volume2 />}
+              </Toggle>
+              <Button
+                variant="outline"
+                size="icon"
+                className="size-9"
+                onClick={toggleTheme}
+                aria-label={theme === 'dark' ? '切换浅色模式' : '切换深色模式'}
+                title={theme === 'dark' ? '切换浅色模式' : '切换深色模式'}
+              >
+                {theme === 'dark' ? <Sun /> : <Moon />}
+              </Button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main className="mx-auto flex max-w-[1280px] flex-col gap-4 px-4 pt-4 sm:px-8 lg:gap-3 lg:pt-3">
+        <section className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div className="min-w-0 space-y-2 lg:flex lg:flex-wrap lg:items-center lg:gap-x-3 lg:gap-y-1 lg:space-y-0">
+            <div className="flex items-center gap-1.5 text-[13px] text-muted-foreground lg:hidden">
+              <Calendar className="size-3.5" />
+              {dateStr} · 年度第 {dayOfYear} 天
+            </div>
+            <h1 className="text-2xl leading-tight font-semibold tracking-tight sm:text-3xl lg:text-2xl">
+              {scale.name}
+            </h1>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <Badge variant={isTodayScale ? 'secondary' : 'outline'}>
+                {isTodayScale ? '今日推荐' : '自选练习'}
+              </Badge>
+              {scale.category && (
+                <Badge variant="outline">{CATEGORY_LABEL[scale.category]}</Badge>
+              )}
+              <Badge variant="outline" className="font-mono">
+                {scale.tongyinSystem}
+              </Badge>
+              <Badge variant="outline" className="text-muted-foreground">
+                {scale.accidentals}
+              </Badge>
+              <span className="ml-1 hidden items-center gap-1.5 text-[13px] text-muted-foreground lg:inline-flex">
+                <Calendar className="size-3.5" />
+                {dateStr} · 年度第 {dayOfYear} 天
+              </span>
             </div>
           </div>
 
-          {/* Right Controls: Flute Key Switcher (C -> D -> E -> F -> G), Scale Picker, Theme Toggle */}
-          <div className="flex items-center gap-2 flex-wrap">
-            {/* Flute Key Switcher (C / D / E / F / G) */}
-            <ToggleGroup
-              type="single"
-              value={diziKey}
-              onValueChange={(v) => v && setDiziKey(v as DiziKey)}
-              variant="pill"
-              size="sm"
-              className="bg-muted p-0.5 rounded-lg border border-border"
-            >
-              <ToggleGroupItem
-                value="qudi_c"
-                className="h-7 px-2.5 text-xs font-medium"
-                title="大曲笛 C调（第三孔作1=C5 · 浑厚悠远）"
-              >
-                C调曲笛
-              </ToggleGroupItem>
-              <ToggleGroupItem
-                value="qudi_d"
-                className="h-7 px-2.5 text-xs font-medium"
-                title="曲笛 D调（第三孔作1=D5 · 初学与江南丝竹首选）"
-              >
-                D调曲笛
-              </ToggleGroupItem>
-              <ToggleGroupItem
-                value="qudi_e"
-                className="h-7 px-2.5 text-xs font-medium"
-                title="中音笛 E调（第三孔作1=E5 · 温婉清丽，江南与国风常用）"
-              >
-                E调笛
-              </ToggleGroupItem>
-              <ToggleGroupItem
-                value="bangdi_f"
-                className="h-7 px-2.5 text-xs font-medium"
-                title="中音梆笛 F调（第三孔作1=F5 · 南北兼修）"
-              >
-                F调梆笛
-              </ToggleGroupItem>
-              <ToggleGroupItem
-                value="bangdi_g"
-                className="h-7 px-2.5 text-xs font-medium"
-                title="北派梆笛 G调（第三孔作1=G5 · 高亢清亮）"
-              >
-                G调梆笛
-              </ToggleGroupItem>
-            </ToggleGroup>
-
+          <div className="w-full sm:w-auto sm:shrink-0">
             <ScalePicker
               selectedScaleId={selectedScaleId}
               todayScaleId={todayScale.id}
               onSelectScale={handleSelectScale}
             />
-
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={toggleTheme}
-              title={theme === 'dark' ? '切换为宣纸浅色模式' : '切换为竹韵深色模式'}
-              className="h-9 w-9 shrink-0 cursor-pointer"
-            >
-              {theme === 'dark' ? (
-                <Sun className="w-4 h-4 text-amber-400" />
-              ) : (
-                <Moon className="w-4 h-4 text-slate-700" />
-              )}
-            </Button>
           </div>
-        </div>
-      </header>
+        </section>
 
-      {/* Main Content Grid */}
-      <main className="max-w-7xl mx-auto w-full px-4 sm:px-6 py-6 flex-1">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          {/* Left Column (7 cols): Scale Card, Sheet Music, Note Strip, Streak & Metronome, Tips */}
-          <div className="lg:col-span-7 flex flex-col gap-6">
-            <Card className="p-5 flex flex-col gap-4">
-              {/* Scale Title & Metadata Header */}
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <Badge
-                      variant="outline"
-                      className="text-[11px] bg-primary/10 text-primary border-primary/30 font-semibold"
-                    >
-                      <Sparkles className="w-3 h-3 mr-1" />
-                      {isTodayScale ? '今日推荐指法练习' : '自选指法与调式专项'}
-                    </Badge>
-                    <Badge variant="secondary" className="text-[11px] font-mono">
-                      {scale.tongyinSystem}
-                    </Badge>
-                    <Badge variant="outline" className="text-[11px]">
-                      {scale.accidentals}
-                    </Badge>
-                  </div>
-                  <h2 className="text-xl sm:text-2xl font-bold tracking-tight mt-1">
-                    {scale.name}
-                  </h2>
-                  <p className="text-xs text-muted-foreground">
-                    当前选用笛子：
-                    <strong className="text-foreground font-medium">
-                      {currentDiziMeta.fullLabel}
-                    </strong>{' '}
-                    · 筒音实音 {currentDiziMeta.tongyinNote} · {currentDiziMeta.timbreDesc}
-                  </p>
-                </div>
-
-                {/* Current Note Quick Audition Card */}
-                <div className="flex items-center gap-2 bg-muted/60 px-3 py-2 rounded-xl border border-border">
-                  <div className="text-right">
-                    <div className="text-xs text-muted-foreground">
-                      当前音高 ({currentDiziMeta.shortLabel})
-                    </div>
-                    <div className="text-sm font-bold font-mono text-primary">
-                      {displayedNote.replace('#', '♯').replace('b', '♭')} ·{' '}
-                      {Math.round(soundingFreq)} Hz
-                    </div>
-                  </div>
-                  <Button
-                    size="sm"
-                    onClick={() => playDiziNote(soundingFreq, 0.75)}
-                    className="h-8 px-2.5 gap-1 text-xs font-semibold cursor-pointer"
-                    title="试听当前竹笛音高（含笛膜泛音与腹震音）"
-                  >
-                    <Volume2 className="w-3.5 h-3.5" />
-                    吹奏试听
-                  </Button>
-                </div>
+        <Card className="top-14 z-20 gap-3 py-3 sm:py-5 lg:py-4">
+          <CardContent className="flex flex-col gap-3 px-3 sm:gap-4 sm:px-6 lg:gap-3">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h2 className="text-base font-semibold">五线谱视奏</h2>
+                <p className="text-xs text-muted-foreground sm:text-[13px]">
+                  点击谱上音符或音名切换指法 · 简谱与半孔提示同步显示
+                </p>
               </div>
-
-              {/* Interactive Five-Line Staff + Jianpu Lyrics */}
-              <SheetMusicView
-                abc={scale.abc}
-                notes={scale.notes}
-                activeNoteIndex={activeNoteIndex}
-                onSelectNote={(idx) => handleSelectNote(idx, true)}
-              />
-
-              {/* Stepper Note Pills Bar */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
-                    <Music2 className="w-3.5 h-3.5 text-primary" />
-                    练习音列序列（共 {scale.notes.length} 音 · 点击任一音符切换指法并试听）
-                  </span>
-                  <div className="flex items-center gap-1">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handlePrevNote}
-                      className="h-7 px-2 text-xs gap-1 cursor-pointer"
-                    >
-                      <ChevronLeft className="w-3.5 h-3.5" />
-                      上一音
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleNextNote}
-                      className="h-7 px-2 text-xs gap-1 cursor-pointer"
-                    >
-                      下一音
-                      <ChevronRight className="w-3.5 h-3.5" />
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="flex flex-wrap gap-1.5">
-                  {scale.notes.map((note, idx) => {
-                    const isActive = !exploreMode && idx === activeNoteIndex;
-                    const nf = FINGERINGS[note];
-                    const shortJianpu = nf ? nf.jianpu.split(' ')[0] : '';
-                    const hasHalf = nf?.keys.some((k) => k.endsWith('_half'));
-                    return (
-                      <button
-                        key={`${note}-${idx}`}
-                        type="button"
-                        onClick={() => handleSelectNote(idx, true)}
-                        className={`px-2.5 py-1.5 rounded-lg border text-xs font-mono transition-all flex flex-col items-center min-w-[48px] cursor-pointer ${
-                          isActive
-                            ? 'bg-primary text-primary-foreground border-primary font-bold shadow-sm scale-105'
-                            : hasHalf
-                              ? 'bg-amber-500/10 text-foreground border-amber-500/30 hover:border-primary/60'
-                              : 'bg-muted/50 text-foreground border-border hover:border-primary/50 hover:bg-muted'
-                        }`}
-                        title={`${note} · ${nf?.jianpu || ''} · ${nf?.desc || ''}`}
-                      >
-                        <span className="text-[11px] leading-tight font-bold">
-                          {shortJianpu}
-                        </span>
-                        <span className="text-[10px] opacity-80 leading-tight">
-                          {note.replace('#', '♯').replace('b', '♭')}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
+              <div className="shrink-0 text-xs text-muted-foreground sm:text-sm">
+                第 <span className="font-mono font-semibold text-foreground">{activeNoteIndex + 1} / {scale.notes.length}</span> 音
               </div>
-            </Card>
-
-            {/* Metronome & Daily Check-in Streak Side-by-Side */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Metronome
-                scaleNotes={scale.notes}
-                diziKey={diziKey}
-                onStepNote={(idx) => setActiveNoteIndex(idx)}
-                isPlayingScale={isPlayingScale}
-                setIsPlayingScale={setIsPlayingScale}
-              />
-              <StreakCard />
             </div>
 
-            {/* Per-Note Wind, Embouchure & Fingering Coaching Card */}
-            <PracticeTipsCard
-              activeNote={displayedNote}
-              activeJianpu={displayedJianpu}
-              scaleTip={scale.tip}
-              tongyinSystem={scale.tongyinSystem}
+            <SheetMusicView
+              abc={scale.abc}
+              notes={scale.notes}
+              activeNoteIndex={activeNoteIndex}
+              onSelectNote={(index) => handleSelectNote(index)}
             />
-          </div>
 
-          {/* Right Column (5 cols): Interactive Chinese Bamboo Flute Diagram */}
-          <div className="lg:col-span-5 lg:sticky lg:top-20">
-            <DiziDiagram
-              activeKeys={displayedKeys}
-              activeNote={displayedNote}
-              activeJianpu={displayedJianpu}
-              activeBreath={displayedBreath}
-              fingeringDesc={displayedDesc}
-              exploreMode={exploreMode}
-              onToggleExploreMode={handleToggleExploreMode}
-              onToggleHole={handleToggleHole}
-              onResetCustomKeys={handleResetCustomKeys}
-              exploreBreath={exploreBreath}
-              onChangeExploreBreath={handleChangeExploreBreath}
-              exploreMatch={exploreMatch}
-              onSelectSameHoleNote={handleSelectSameHoleNote}
-              soundMode={soundMode}
-              onChangeSoundMode={setSoundMode}
+            <div className="relative -mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 lg:flex-wrap lg:overflow-visible lg:pb-0">
+              {scale.notes.map((note, index) => {
+                const fingering = FINGERINGS[note];
+                const active = !exploreMode && index === activeNoteIndex;
+                const hasHalfHole = fingering?.keys.some((key) => key.endsWith('_half'));
+                return (
+                  <Button
+                    key={`${note}-${index}`}
+                    size="sm"
+                    variant={active ? 'brand' : 'outline'}
+                    aria-label={`跳转到 ${prettyNote(note)}`}
+                    aria-current={active ? 'step' : undefined}
+                    className={`min-w-12 shrink-0 font-mono ${hasHalfHole && !active ? 'border-brand/40 bg-brand/5' : ''}`}
+                    onClick={() => handleSelectNote(index)}
+                    title={`${note} · ${fingering?.jianpu ?? ''} · ${fingering?.desc ?? ''}`}
+                  >
+                    <span>{prettyNote(note)}</span>
+                    {hasHalfHole && <span className="text-brand">◐</span>}
+                  </Button>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+
+        <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-12 lg:grid-rows-[auto_1fr]">
+          <Card className="gap-0 py-3 sm:py-6 lg:col-span-5 lg:col-start-1 lg:row-start-1">
+            <CardContent className="space-y-3 px-4 sm:space-y-5 sm:px-6">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="text-xs font-medium text-muted-foreground sm:text-[13px]">
+                    当前音符<span className="lg:hidden"> · {activeNoteIndex + 1} / {scale.notes.length}</span>
+                  </div>
+                  <div className="mt-1 text-4xl leading-none font-semibold tracking-tighter sm:text-6xl">
+                    {prettyNote(displayedNote)}
+                  </div>
+                  <div className="mt-1 truncate text-sm text-muted-foreground sm:text-[15px]">
+                    {displayedDesc}
+                  </div>
+                </div>
+                <div className="flex shrink-0 flex-col items-end gap-1">
+                  <Badge variant="outline" className="h-6 rounded-full px-2.5">
+                    <span className="size-1.5 rounded-full bg-success" />
+                    实际音高 {currentDiziMeta.shortLabel}
+                  </Badge>
+                  <span className="font-mono text-xs text-muted-foreground">
+                    {Math.round(soundingFreq)} Hz · {currentDiziMeta.tongyinNote}
+                  </span>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>音阶进度</span>
+                  <span className="font-mono">{activeNoteIndex + 1} / {scale.notes.length}</span>
+                </div>
+                <div
+                  className="h-1.5 overflow-hidden rounded-full bg-muted"
+                  role="progressbar"
+                  aria-label="音阶练习进度"
+                  aria-valuemin={0}
+                  aria-valuemax={scale.notes.length}
+                  aria-valuenow={activeNoteIndex + 1}
+                >
+                  <div className="h-full rounded-full bg-brand transition-all" style={{ width: `${progressPct}%` }} />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between max-sm:hidden">
+                  <span className="text-[13px] font-medium">按孔组合</span>
+                  <span className="text-xs text-muted-foreground">
+                    {displayedKeys.length > 0 ? `${displayedKeys.length} 个音孔闭合` : '全开音孔'}
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {displayedKeys.length === 0 ? (
+                    <Badge variant="outline" className="text-muted-foreground">全开音孔（不按任何音孔）</Badge>
+                  ) : (
+                    displayedKeys.map((key) => (
+                      <Badge key={key} variant="secondary" className="h-[26px] rounded-md px-2.5 text-xs">
+                        <span className="size-2 rounded-full bg-brand" />
+                        {key.replace('hole_', '音孔 ').replace('_half', ' 半孔')}
+                      </Badge>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="size-11"
+                  aria-label="上一个音"
+                  onClick={handlePrevNote}
+                >
+                  <ChevronLeft />
+                </Button>
+                <Button
+                  className="h-11 flex-1"
+                  onClick={() => playDiziNote(soundingFreq, 0.75)}
+                  aria-label="试听当前竹笛音"
+                >
+                  <Play className="fill-current" /> 吹奏试听
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="size-11"
+                  aria-label="下一个音"
+                  onClick={handleNextNote}
+                >
+                  <ChevronRight />
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                节拍器可逐拍自动推进音阶并同步播放竹笛示范音。
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card className="py-4 sm:py-5 lg:col-span-7 lg:col-start-6 lg:row-span-2 lg:row-start-1 lg:py-4">
+            <CardContent className="flex flex-col items-center justify-center px-3 sm:px-6">
+              <DiziDiagram
+                activeKeys={displayedKeys}
+                activeNote={displayedNote}
+                activeJianpu={displayedJianpu}
+                activeBreath={displayedBreath}
+                fingeringDesc={displayedDesc}
+                exploreMode={exploreMode}
+                onToggleExploreMode={handleToggleExploreMode}
+                onToggleHole={handleToggleHole}
+                onResetCustomKeys={handleResetCustomKeys}
+                exploreBreath={exploreBreath}
+                onChangeExploreBreath={handleChangeExploreBreath}
+                exploreMatch={exploreMatch}
+                onSelectSameHoleNote={handleSelectSameHoleNote}
+                soundMode={soundMode}
+                onChangeSoundMode={setSoundMode}
+              />
+            </CardContent>
+          </Card>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:col-span-5 lg:col-start-1 lg:row-start-2">
+            <Metronome
+              scaleNotes={scale.notes}
+              diziKey={diziKey}
+              onStepNote={(index) => setActiveNoteIndex(index)}
+              isPlayingScale={isPlayingScale}
+              setIsPlayingScale={setIsPlayingScale}
             />
+            <StreakCard />
           </div>
         </div>
+
+        <PracticeTipsCard
+          activeNote={displayedNote}
+          activeJianpu={displayedJianpu}
+          scaleTip={scale.tip}
+          tongyinSystem={scale.tongyinSystem}
+        />
+
+        <footer className="flex flex-wrap justify-between gap-2 border-t py-6 text-xs text-muted-foreground">
+          <span>Dizi Daily · 曲笛与梆笛每日指法、气息与视奏练习</span>
+          <span>坚持练习，笛韵自见</span>
+        </footer>
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-border py-4 px-6 text-center text-xs text-muted-foreground mt-8">
-        <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
-          <span>
-            中国竹笛每日指法与气功练习 · 支持 C / D / E / F / G 五大常用调性竹笛 · 筒音转调与半孔/叉口可视化
-          </span>
-          <span className="font-mono text-[11px]">
-            Built with React 19 + Tailwind CSS v4 + abcjs + Web Audio API
-          </span>
-        </div>
-      </footer>
+      <nav
+        aria-label="练习控制"
+        className="fixed inset-x-0 bottom-0 z-40 flex gap-2 border-t bg-background/95 px-4 pt-3 pb-[calc(env(safe-area-inset-bottom)+12px)] backdrop-blur lg:hidden"
+      >
+        <Button variant="outline" size="icon" className="size-11" aria-label="上一个音" onClick={handlePrevNote}>
+          <ChevronLeft />
+        </Button>
+        <Button className="h-11 flex-1 font-semibold" onClick={() => playDiziNote(soundingFreq, 0.75)}>
+          <Volume2 /> 试听当前音
+        </Button>
+        <Button variant="outline" size="icon" className="size-11" aria-label="下一个音" onClick={handleNextNote}>
+          <ChevronRight />
+        </Button>
+      </nav>
     </div>
   );
 }

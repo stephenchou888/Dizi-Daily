@@ -1,6 +1,53 @@
-import { useRef, useCallback } from 'react';
+import { useCallback, useSyncExternalStore } from 'react';
 import { DiziKey } from '../types/music';
 import { DIZI_KEYS } from '../data/scales';
+
+let sharedAudioContext: AudioContext | null = null;
+let masterOutput: GainNode | null = null;
+let muted = false;
+const muteListeners = new Set<() => void>();
+
+function subscribeMuted(listener: () => void) {
+  muteListeners.add(listener);
+  return () => muteListeners.delete(listener);
+}
+
+export function useAudioMuted(): [boolean, (next: boolean) => void] {
+  const value = useSyncExternalStore(subscribeMuted, () => muted, () => false);
+  return [value, setAudioMuted];
+}
+
+function setAudioMuted(next: boolean) {
+  muted = next;
+  if (sharedAudioContext && masterOutput) {
+    masterOutput.gain.setTargetAtTime(
+      next ? 0 : 1,
+      sharedAudioContext.currentTime,
+      0.01
+    );
+  }
+  muteListeners.forEach((listener) => listener());
+}
+
+function getSharedContext(): AudioContext {
+  if (!sharedAudioContext) {
+    const AudioContextClass =
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    sharedAudioContext = new AudioContextClass();
+    masterOutput = sharedAudioContext.createGain();
+    masterOutput.gain.value = muted ? 0 : 1;
+    masterOutput.connect(sharedAudioContext.destination);
+  }
+  if (sharedAudioContext.state === 'suspended') {
+    sharedAudioContext.resume();
+  }
+  return sharedAudioContext;
+}
+
+function getOutput(ctx: AudioContext): AudioNode {
+  return masterOutput ?? ctx.destination;
+}
 
 /**
  * Convert the written reference pitch (where 第三孔 C5 = 523.25 Hz, 筒音 G4 = 392.00 Hz)
@@ -16,19 +63,8 @@ export function getDiziSoundingPitch(writtenFreq: number, diziKey: DiziKey): num
 }
 
 export function useSoundEngine() {
-  const audioCtxRef = useRef<AudioContext | null>(null);
-
   const getContext = useCallback(() => {
-    if (!audioCtxRef.current) {
-      const AudioContextClass =
-        window.AudioContext ||
-        (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-      audioCtxRef.current = new AudioContextClass();
-    }
-    if (audioCtxRef.current.state === 'suspended') {
-      audioCtxRef.current.resume();
-    }
-    return audioCtxRef.current;
+    return getSharedContext();
   }, []);
 
   /**
@@ -50,7 +86,7 @@ export function useSoundEngine() {
         masterGain.gain.exponentialRampToValueAtTime(0.21, now + 0.14);
         masterGain.gain.setValueAtTime(0.21, now + Math.max(0.15, duration - 0.09));
         masterGain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
-        masterGain.connect(ctx.destination);
+        masterGain.connect(getOutput(ctx));
 
         // 1. Primary bamboo air-column oscillator (Triangle + Sine blend)
         const fundOsc = ctx.createOscillator();
@@ -157,7 +193,7 @@ export function useSoundEngine() {
         gain.gain.exponentialRampToValueAtTime(0.001, now + 0.042);
 
         osc.connect(gain);
-        gain.connect(ctx.destination);
+        gain.connect(getOutput(ctx));
 
         osc.start(now);
         osc.stop(now + 0.045);
@@ -190,7 +226,7 @@ export function useSoundEngine() {
         gain.gain.exponentialRampToValueAtTime(0.001, now + 0.055);
 
         osc.connect(gain);
-        gain.connect(ctx.destination);
+        gain.connect(getOutput(ctx));
 
         osc.start(now);
         osc.stop(now + 0.06);
