@@ -123,9 +123,9 @@ export function useSoundEngine() {
 
         const masterGain = ctx.createGain();
         masterGain.gain.setValueAtTime(0.0001, now);
-        masterGain.gain.linearRampToValueAtTime(0.28, now + 0.032);
-        masterGain.gain.exponentialRampToValueAtTime(0.21, now + 0.14);
-        masterGain.gain.setValueAtTime(0.21, now + Math.max(0.15, duration - 0.09));
+        masterGain.gain.linearRampToValueAtTime(0.55, now + 0.032);
+        masterGain.gain.exponentialRampToValueAtTime(0.42, now + 0.14);
+        masterGain.gain.setValueAtTime(0.42, now + Math.max(0.15, duration - 0.09));
         masterGain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
         masterGain.connect(getOutput(ctx));
 
