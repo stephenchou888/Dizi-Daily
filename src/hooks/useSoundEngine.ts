@@ -1,4 +1,4 @@
-import { useCallback, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useSyncExternalStore } from 'react';
 import { DiziKey } from '../types/music';
 import { DIZI_KEYS } from '../data/scales';
 
@@ -40,10 +40,34 @@ function getSharedContext(): AudioContext {
     masterOutput.connect(sharedAudioContext.destination);
   }
   if (sharedAudioContext.state === 'suspended') {
-    sharedAudioContext.resume();
+    sharedAudioContext.resume().catch(() => {});
   }
   return sharedAudioContext;
 }
+
+// iOS / 移动端：首次用户手势时解锁音频（全局只注册一次）
+let unlockInstalled = false;
+function installAudioUnlock() {
+  if (unlockInstalled) return;
+  unlockInstalled = true;
+  const events = ['touchstart', 'touchend', 'click', 'keydown'] as const;
+  const unlock = () => {
+    try {
+      const ctx = getSharedContext();
+      const source = ctx.createBufferSource();
+      source.buffer = ctx.createBuffer(1, 1, 22050);
+      source.connect(ctx.destination);
+      source.start(0);
+      if (ctx.state === 'running') {
+        events.forEach((e) => window.removeEventListener(e, unlock));
+      }
+    } catch {
+      /* 浏览器不支持 Web Audio */
+    }
+  };
+  events.forEach((e) => window.addEventListener(e, unlock, { passive: true }));
+}
+
 
 function getOutput(ctx: AudioContext): AudioNode {
   return masterOutput ?? ctx.destination;
@@ -67,6 +91,10 @@ export function useSoundEngine() {
     return getSharedContext();
   }, []);
 
+  useEffect(() => {
+    installAudioUnlock();
+  }, []);
+
   /**
    * Synthesize an authentic Chinese Bamboo Flute (中国竹笛) tone:
    * 1. Bamboo tube fundamental + 2nd harmonic (sine + triangle)
@@ -75,9 +103,15 @@ export function useSoundEngine() {
    * 4. Expressive diaphragm vibrato (腹震音 ~5.5 Hz)
    */
   const playDiziNote = useCallback(
-    (freq: number, duration = 0.65, startTime?: number) => {
+    (freq: number, duration = 0.65, startTime?: number, resumed = false) => {
       try {
         const ctx = getContext();
+        // 上下文尚未 running（首次手势/移动端）时先等 resume 完成再调度，避免首次点击无声
+        if (ctx.state !== 'running' && !resumed) {
+          const retry = () => playDiziNote(freq, duration, startTime, true);
+          ctx.resume().then(retry, retry);
+          return;
+        }
         const now = startTime ?? ctx.currentTime;
 
         const masterGain = ctx.createGain();
