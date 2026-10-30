@@ -225,7 +225,7 @@ export const DiziDiagram: React.FC<DiziDiagramProps> = ({
           r={r}
           fill={
             state === 'closed'
-              ? 'var(--primary)'
+              ? 'var(--brand)'
               : isRealistic
                 ? '#1c140d'
                 : 'var(--sax-key-fill)'
@@ -252,7 +252,7 @@ export const DiziDiagram: React.FC<DiziDiagramProps> = ({
             cx={cx}
             cy={cy}
             r={r}
-            fill="var(--primary)"
+            fill="var(--brand)"
             clipPath={`url(#${clipId})`}
           />
         )}
@@ -772,7 +772,7 @@ export const DiziDiagram: React.FC<DiziDiagramProps> = ({
 
                 {/* Legend at bottom */}
                 <g transform="translate(45, 594)">
-                  <circle cx="12" cy="0" r="5" fill="var(--primary)" />
+                  <circle cx="12" cy="0" r="5" fill="var(--brand)" />
                   <text x="22" y="3.5" className="text-[10px] fill-muted-foreground">
                     全按闭孔
                   </text>
@@ -784,7 +784,7 @@ export const DiziDiagram: React.FC<DiziDiagramProps> = ({
                     stroke="var(--primary)"
                     strokeWidth="1.5"
                   />
-                  <path d="M 87 0 A 5 5 0 0 0 97 0 Z" fill="var(--primary)" />
+                  <path d="M 87 0 A 5 5 0 0 0 97 0 Z" fill="var(--brand)" />
                   <text x="102" y="3.5" className="text-[10px] fill-muted-foreground">
                     半孔 (◐)
                   </text>

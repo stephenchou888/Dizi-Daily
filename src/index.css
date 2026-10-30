@@ -29,6 +29,12 @@
   --border: #e4e4e7;
   --input: #e4e4e7;
   --ring: #a1a1aa;
+  --sax-body-bg: #f5e6c4;
+  --sax-body-stroke: #b88446;
+  --sax-key-fill: #fffaf0;
+  --sax-key-stroke: #a8793a;
+  --sax-key-active-stroke: #b45309;
+  --sax-label: #a1a1aa;
 }
 
 .dark {
@@ -55,6 +61,12 @@
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: #71717a;
+  --sax-body-bg: #3b2b19;
+  --sax-body-stroke: #b88446;
+  --sax-key-fill: #1f1710;
+  --sax-key-stroke: #c89a5b;
+  --sax-key-active-stroke: #fbbf24;
+  --sax-label: #71717a;
 }
 
 @theme inline {
