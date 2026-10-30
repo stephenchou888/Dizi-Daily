@@ -1,34 +1,25 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 
 export type Theme = 'light' | 'dark';
 
 const STORAGE_KEY = 'dizi_daily_theme';
 
 export function useTheme() {
-  const [theme, setTheme] = useState<Theme>(() => {
-    if (typeof window === 'undefined') return 'dark';
-    const saved = window.localStorage.getItem(STORAGE_KEY);
-    if (saved === 'light' || saved === 'dark') return saved;
-    return 'dark';
-  });
+  const [theme, setTheme] = useState<Theme>(() =>
+    document.documentElement.classList.contains('dark') ? 'dark' : 'light'
+  );
 
-  useEffect(() => {
-    const root = document.documentElement;
-    if (theme === 'dark') {
-      root.classList.add('dark');
-    } else {
-      root.classList.remove('dark');
-    }
+  const toggleTheme = useCallback(() => {
+    const next: Theme =
+      document.documentElement.classList.contains('dark') ? 'light' : 'dark';
+    document.documentElement.classList.toggle('dark', next === 'dark');
     try {
-      window.localStorage.setItem(STORAGE_KEY, theme);
+      localStorage.setItem(STORAGE_KEY, next);
     } catch {
-      // ignore storage errors
+      // Private browsing may disable persistent storage.
     }
-  }, [theme]);
+    setTheme(next);
+  }, []);
 
-  const toggleTheme = () => {
-    setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
-  };
-
-  return { theme, setTheme, toggleTheme };
+  return { theme, toggleTheme };
 }

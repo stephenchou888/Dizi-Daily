@@ -3,7 +3,7 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* shadcn/ui 主题令牌（zinc 中性色），与设计稿一致；翠竹/琥珀金 brand 用于当前音与按孔高亮 */
+/* shadcn/ui 主题令牌（zinc 中性色）；琥珀金 brand 用于当前音与按孔高亮 */
 :root {
   --radius: 0.625rem;
   --background: #fafafa;
