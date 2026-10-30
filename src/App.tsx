@@ -240,6 +240,8 @@ export default function App() {
       setActiveNoteIndex(0);
     }
     setExploreMode(false);
+    // 避免与节拍器“自动推进音阶”同时推进造成跳音
+    setIsPlayingScale(false);
     const fingering = FINGERINGS[scale.notes[startIndex]];
     if (fingering) playDiziNote(getDiziSoundingPitch(fingering.freq, diziKey), 0.65);
     setIsAuditionPlaying(true);
