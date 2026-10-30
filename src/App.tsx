@@ -16,7 +16,9 @@ import {
   ChevronLeft,
   ChevronRight,
   Moon,
-  Pause,
+  Repeat,
+  Repeat1,
+  Square,
   Play,
   Sun,
   Volume2,
@@ -84,6 +86,7 @@ export default function App() {
   );
 
   const handleSelectScale = (newScaleId: string) => {
+    setIsAuditionPlaying(false);
     setSelectedScaleId(newScaleId);
     setActiveNoteIndex(0);
     setExploreMode(false);
@@ -195,27 +198,35 @@ export default function App() {
     : currentFingering.desc;
   const currentDiziMeta = DIZI_KEYS[diziKey];
   const [isAuditionPlaying, setIsAuditionPlaying] = useState(false);
-  const auditionStepRef = useRef({ activeNoteIndex, notes: scale.notes, diziKey });
-  auditionStepRef.current = { activeNoteIndex, notes: scale.notes, diziKey };
+  const [demoLoop, setDemoLoop] = useState(true);
+  const [bpm, setBpm] = useState(80);
+  const auditionStepRef = useRef({ activeNoteIndex, notes: scale.notes, diziKey, demoLoop });
+  auditionStepRef.current = { activeNoteIndex, notes: scale.notes, diziKey, demoLoop };
 
+  // 慢速指法演示：每拍前进一个音，BPM 与节拍器共用；单次模式到最后一个音后自动停止
   useEffect(() => {
     if (!isAuditionPlaying) return;
 
     const timer = window.setInterval(() => {
-      const { activeNoteIndex: currentIndex, notes, diziKey: currentKey } =
+      const { activeNoteIndex: currentIndex, notes, diziKey: currentKey, demoLoop: loop } =
         auditionStepRef.current;
       if (notes.length === 0) return;
+      if (!loop && currentIndex >= notes.length - 1) {
+        setIsAuditionPlaying(false);
+        return;
+      }
 
       const nextIndex = (currentIndex + 1) % notes.length;
       const fingering = FINGERINGS[notes[nextIndex]];
       if (fingering) {
-        playDiziNote(getDiziSoundingPitch(fingering.freq, currentKey), 0.65);
+        playDiziNote(getDiziSoundingPitch(fingering.freq, currentKey), Math.min(0.85, (60 / bpm) * 0.88));
       }
+      auditionStepRef.current.activeNoteIndex = nextIndex;
       setActiveNoteIndex(nextIndex);
-    }, 60000 / 76);
+    }, 60000 / bpm);
 
     return () => window.clearInterval(timer);
-  }, [isAuditionPlaying, playDiziNote]);
+  }, [isAuditionPlaying, playDiziNote, bpm]);
 
   const handleAudition = () => {
     if (isAuditionPlaying) {
@@ -223,7 +234,14 @@ export default function App() {
       return;
     }
 
-    playDiziNote(soundingFreq, 0.65);
+    let startIndex = activeNoteIndex;
+    if (!demoLoop && activeNoteIndex >= scale.notes.length - 1) {
+      startIndex = 0;
+      setActiveNoteIndex(0);
+    }
+    setExploreMode(false);
+    const fingering = FINGERINGS[scale.notes[startIndex]];
+    if (fingering) playDiziNote(getDiziSoundingPitch(fingering.freq, diziKey), 0.65);
     setIsAuditionPlaying(true);
   };
 
@@ -457,12 +475,13 @@ export default function App() {
                   <ChevronLeft />
                 </Button>
                 <Button
+                  variant={isAuditionPlaying ? 'destructive' : 'default'}
                   className="h-11 flex-1"
                   onClick={handleAudition}
-                  aria-label={isAuditionPlaying ? '暂停连续吹奏' : '连续吹奏音阶'}
+                  aria-label={isAuditionPlaying ? '停止演示' : '慢速指法演示'}
                 >
-                  {isAuditionPlaying ? <Pause /> : <Play className="fill-current" />}
-                  {isAuditionPlaying ? '暂停吹奏' : '连续吹奏'}
+                  {isAuditionPlaying ? <Square className="fill-current" /> : <Play className="fill-current" />}
+                  {isAuditionPlaying ? '停止演示' : '慢速指法演示'}
                 </Button>
                 <Button
                   variant="outline"
@@ -473,9 +492,19 @@ export default function App() {
                 >
                   <ChevronRight />
                 </Button>
+                <Toggle
+                  variant="outline"
+                  className="size-11 p-0"
+                  pressed={demoLoop}
+                  onPressedChange={setDemoLoop}
+                  aria-label={demoLoop ? '循环演示（点击改为单次）' : '单次演示（点击改为循环）'}
+                  title={demoLoop ? '循环演示' : '单次演示：到最后一个音自动停止'}
+                >
+                  {demoLoop ? <Repeat /> : <Repeat1 />}
+                </Toggle>
               </div>
               <p className="text-xs text-muted-foreground">
-                节拍器可逐拍自动推进音阶并同步播放竹笛示范音。
+                演示速度：<span className="font-mono">{bpm} BPM</span>，每拍一个音{demoLoop ? '，循环播放' : '，播放一遍后停止'}。
               </p>
             </CardContent>
           </Card>
@@ -504,6 +533,8 @@ export default function App() {
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:col-span-5 lg:col-start-1 lg:row-start-2">
             <Metronome
+              bpm={bpm}
+              onBpmChange={setBpm}
               scaleNotes={scale.notes}
               diziKey={diziKey}
               onStepNote={(index) => setActiveNoteIndex(index)}
@@ -534,13 +565,22 @@ export default function App() {
         <Button variant="outline" size="icon" className="size-11" aria-label="上一个音" onClick={handlePrevNote}>
           <ChevronLeft />
         </Button>
-        <Button className="h-11 flex-1 font-semibold" onClick={handleAudition}>
-          {isAuditionPlaying ? <Pause /> : <Play className="fill-current" />}
-          {isAuditionPlaying ? '暂停吹奏' : '连续吹奏'}
+        <Button variant={isAuditionPlaying ? 'destructive' : 'default'} className="h-11 flex-1 font-semibold" onClick={handleAudition}>
+          {isAuditionPlaying ? <Square className="fill-current" /> : <Play className="fill-current" />}
+          {isAuditionPlaying ? '停止演示' : '慢速指法演示'}
         </Button>
         <Button variant="outline" size="icon" className="size-11" aria-label="下一个音" onClick={handleNextNote}>
           <ChevronRight />
         </Button>
+        <Toggle
+          variant="outline"
+          className="size-11 p-0"
+          pressed={demoLoop}
+          onPressedChange={setDemoLoop}
+          aria-label={demoLoop ? '循环演示（点击改为单次）' : '单次演示（点击改为循环）'}
+        >
+          {demoLoop ? <Repeat /> : <Repeat1 />}
+        </Toggle>
       </nav>
     </div>
   );

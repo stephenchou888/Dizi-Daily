@@ -225,25 +225,43 @@ export const SheetMusicView: React.FC<SheetMusicViewProps> = ({
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
-    const allNotes = el.querySelectorAll('.abcjs-note');
-    allNotes.forEach((node, idx) => {
-      if (idx === activeNoteIndex) {
-        node.classList.add('abcjs-active-note');
-        if (singleLine && scrollWrapperRef.current) {
-          const wrapper = scrollWrapperRef.current;
-          const t = node.getBoundingClientRect();
-          const w = wrapper.getBoundingClientRect();
-          if (w.width > 0) {
-            wrapper.scrollTo({
-              left: wrapper.scrollLeft + (t.left + t.width / 2) - (w.left + w.width / 2),
-              behavior: 'smooth',
-            });
-          }
-        }
-      } else {
-        node.classList.remove('abcjs-active-note');
-      }
+    el.querySelectorAll('.active-score-note').forEach((node) => {
+      node.classList.remove('active-score-note');
+      node.querySelectorAll('path').forEach((p) => {
+        p.style.fill = '';
+        p.style.stroke = '';
+        p.style.filter = '';
+      });
     });
+
+    const target = (el.querySelectorAll('.abcjs-note')[activeNoteIndex] as HTMLElement | undefined) ?? null;
+    if (!target) return;
+    target.classList.add('active-score-note');
+    const glow = 'drop-shadow(0 0 6px rgba(245, 158, 11, 0.95))';
+    const paths = target.querySelectorAll('path');
+    if (paths.length > 0) {
+      paths.forEach((p) => {
+        p.style.fill = '#f59e0b';
+        p.style.stroke = '#f59e0b';
+        p.style.filter = glow;
+      });
+    } else {
+      target.style.fill = '#f59e0b';
+      target.style.stroke = '#f59e0b';
+      target.style.filter = glow;
+    }
+
+    const wrapper = scrollWrapperRef.current;
+    if (singleLine && wrapper) {
+      const t = target.getBoundingClientRect();
+      const w = wrapper.getBoundingClientRect();
+      if (w.width > 0) {
+        wrapper.scrollTo({
+          left: wrapper.scrollLeft + (t.left + t.width / 2) - (w.left + w.width / 2),
+          behavior: 'smooth',
+        });
+      }
+    }
   }, [activeNoteIndex, renderTick, singleLine]);
 
   const view = (
